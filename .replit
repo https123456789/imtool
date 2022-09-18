@@ -1,0 +1,13 @@
+run = "./main"
+entrypoint = "main.cpp"
+
+[languages.cpp]
+pattern = "**/*.{cpp,h}"
+
+[languages.cpp.languageServer]
+start = "ccls"
+
+[nix]
+
+[nix.channel]
+channel = "stable-22_05"
