@@ -1,7 +1,6 @@
 # Builds
 build
+target
 imtool
 imtool.exe
-
-# ccls
-.ccls-cache
+target

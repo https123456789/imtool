@@ -1,0 +1,12 @@
+[package]
+name = "imtool"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "3.2.22", features = ["derive"] }
+console = "0.15.1"
+indicatif = "0.16.2"
+libheif-rs = "0.15.0"
