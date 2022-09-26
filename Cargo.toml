@@ -7,6 +7,6 @@ edition = "2018"
 
 [dependencies]
 clap = { version = "3.2.22", features = ["derive"] }
-indicatif = "0.16.2"
+indicatif = "0.17.1"
 libheif-rs = "0.15.0"
 term_size = "0.3.2"
