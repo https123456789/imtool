@@ -1,19 +1,20 @@
 extern crate clap;
 extern crate indicatif;
-//extern crate bytes;
 
 mod image_type;
+mod image;
+mod loaders;
 
-//use std::fs::File;
-//use std::io;
-//use std::io::prelude::*;
 use std::fs;
 
+//use std::{thread, time::Duration};
+
 use clap::{Command, Arg};
-//use indicatif::ProgressBar;
-//use bytes::{BytesMut, BufMut};
+use indicatif::{ProgressBar, ProgressStyle};
 
 use image_type::ImageType;
+use image::Image;
+use loaders::{HeifLoader};
 
 fn main() {
     // Setup args
@@ -63,20 +64,41 @@ fn main() {
     if let Some(t) = arg_matches.get_one::<String>("to") {
         target_type_string = t.to_string();
     }
-    for (pos, e) in files.iter().enumerate() {
-        println!("File {}: {}", pos, e);
+    // Create the progress bar
+    let bar = ProgressBar::new(files.len() as u64);
+    bar.set_style(ProgressStyle::default_bar()
+        .template("[{elapsed_precise}] {bar:50.white.on_black} {pos}/{len} {msg}"));
+    for (_pos, e) in files.iter().enumerate() {
+        bar.set_message(format!(
+            "Converting {}...",
+            &e
+        ).to_string());
         process_file(&e, &String::from(&target_type_string));
+        bar.inc(1);
     }
+    bar.finish_with_message(format!(
+        "✅ All done! Finished converting {} files.",
+        files.len() as u64
+    ));
 }
 
-fn detect_image_type(filename: &String) -> ImageType {
-    let fr = fs::read(filename);
-    let mut file_type_string: String = String::from("error");
+fn get_image_data(filename: &String) -> Result<Vec<u8>, String> {
+    let fr = fs::read(&filename);
     if fr.is_ok() != true {
         println!("\x1b[31mError: file '{}' does not exist or could not be opened.\x1b[0m", filename);
-        return ImageType::new(String::from("error"));
+        return Err(format!("file '{}' does not exist or could not be opened.", filename).to_string());
     }
-    let file_data = fr.unwrap();
+    Ok(fr.unwrap())
+}
+    
+fn detect_image_type(filename: &String) -> ImageType {
+    let mut file_type_string: String = String::from("error");
+    let mut file_data: Vec<u8> = Vec::new();
+    file_data = match get_image_data(filename) {
+        Ok(v) => v,
+        Err(_error) => panic!("Error detecting image type")
+    };
+    //file_data = ;
     // Detect the image type
     if file_data[0] == 0 && file_data[1] == 0 && file_data[2] == 0 {
         file_type_string = String::from("heif");
@@ -87,16 +109,41 @@ fn detect_image_type(filename: &String) -> ImageType {
                 file_data[6] == 26 && file_data[7] == 10 {
         file_type_string = String::from("png");
     } else {}
-    //println!("Size: {:?}, Type: {:?}", file_data.len(), file_type_string);
     return ImageType::new(file_type_string);
+}
+
+fn get_image(filename: &String, image_type: &ImageType, target_type: &ImageType) -> Image {
+    // Heif
+    if image_type.heif {
+        // Create the loader
+        let loader = HeifLoader::new(filename);
+        // Load
+        loader.load();
+        // Return the image
+        return loader.get_image();
+    } else {
+        // Clear the line
+        /*if let Some((w, h)) = term_size::dimensions() {
+            print!("\r");
+            for i in 0..w {
+                print!(" ");
+            }
+            print!("\r");
+        }*/
+        print!("\x1b[1A\x1b[2K\r\x1b[93m[Warning]: Unsupported file type: {:?}. Triggered by file {}.\x1b[0m\n\n", image_type.to_string(), filename.to_string());
+        return Image::new(1, 1);
+    }
 }
 
 fn process_file(filename: &String, target_type_string: &String) -> i32 {
     let image_type = detect_image_type(filename);
-    let mut target_type = ImageType::new(target_type_string.to_string());
+    let target_type = ImageType::new(target_type_string.to_string());
     if target_type_string == "###no-op###" {
-        target_type = ImageType::new(image_type.to_string());
+        return 0;
     }
-    println!("Type: {}, Target: {}", image_type.to_string(), target_type.to_string());
+    // Get the image
+    let image = get_image(filename, &image_type, &target_type);
+    //println!("Type: {}, Target: {}", image_type.to_string(), target_type.to_string());
+    //thread::sleep(Duration::from_millis(1000));
     return 0;
 }

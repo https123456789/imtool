@@ -7,5 +7,6 @@
 		pkgs.cargo-edit
         pkgs.rust-analyzer
         pkgs.tokei
+        pkgs.libheif
 	];
 }

@@ -4,3 +4,6 @@ target
 imtool
 imtool.exe
 target
+
+# Replit
+.cache/replit

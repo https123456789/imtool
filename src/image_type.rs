@@ -1,8 +1,8 @@
 pub struct ImageType {
-    heif: bool,
-    jpeg: bool,
-    png: bool,
-    error: bool
+    pub heif: bool,
+    pub jpeg: bool,
+    pub png: bool,
+    pub error: bool
 }
 
 impl ImageType {
