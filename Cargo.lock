@@ -122,6 +122,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "indicatif",
+ "jpeg-encoder",
  "libheif-rs",
  "term_size",
 ]
@@ -146,6 +147,12 @@ dependencies = [
  "number_prefix",
  "unicode-width",
 ]
+
+[[package]]
+name = "jpeg-encoder"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2cf3affe27ffd9f1992690ec7575568b222abe9cb39738f6531968aca8e64906"
 
 [[package]]
 name = "libc"

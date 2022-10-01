@@ -7,3 +7,6 @@ target
 
 # Replit
 .cache/replit
+
+# Cargo
+.cargo/registry

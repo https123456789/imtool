@@ -1,5 +1,5 @@
 compile = "cargo build && cp target/debug/imtool ."
-run = "IMTOOL_DEBUG=1 ./imtool images/* -t jpeg"
+run = "IMTOOL_DEBUG=1 ./imtool images/* -t jpeg -o imagesOutput"
 hidden = ["target"]
 
 entrypoint = "src/main.rs"

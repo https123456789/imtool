@@ -4,10 +4,9 @@ extern crate indicatif;
 mod image_type;
 mod image;
 mod loaders;
+mod exporters;
 
 use std::fs;
-
-//use std::{thread, time::Duration};
 
 use clap::{Command, Arg};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -15,19 +14,30 @@ use indicatif::{ProgressBar, ProgressStyle};
 use image_type::ImageType;
 use image::Image;
 use loaders::{HeifLoader};
+use exporters::{JpegExporter};
+
+static mut VERBOSE: bool = false;
 
 fn main() {
     // Setup args
     let arg_matches = Command::new("imtool")
         .author("Ben Landon")
         .version("0.1.0")
-        .about("A command-line tool for working with images.")
+        .about("A tool for working with images.")
         .arg(
             Arg::new("verbose")
                 .short('v')
                 .long("verbose")
                 .takes_value(false)
                 .help("Print verbose information")
+        )
+        .arg(
+            Arg::new("output-dir")
+                .short('o')
+                .long("output-dir")
+                .takes_value(true)
+                .value_parser(clap::value_parser!(String))
+                .help("Overrides the default output directory. Note: The default is the same directory as the file is located in.")
         )
         .arg(
             Arg::with_name("files")
@@ -47,6 +57,14 @@ fn main() {
         .get_matches();
     // Process input files
     let mut files: Vec<String> = Vec::new();
+    unsafe {
+        match arg_matches.try_contains_id("verbose") {
+            Ok(_v) => {
+                VERBOSE = _v;
+            },
+            Err(_error) => ()
+        }
+    }
     let mut arg_files = arg_matches.get_many::<String>("files")
         .unwrap()
         .map(|s| s.as_str());
@@ -66,8 +84,11 @@ fn main() {
     }
     // Create the progress bar
     let bar = ProgressBar::new(files.len() as u64);
-    bar.set_style(ProgressStyle::default_bar()
-        .template("[{elapsed_precise}] {bar:50.white.on_black} {pos}/{len} {msg}"));
+    let style = match ProgressStyle::default_bar().template("[{elapsed_precise}] {bar:50.white.on_black} {pos}/{len} {msg}") {
+        Ok(v) => v,
+        Err(_error) => bar.style()
+    };
+    bar.set_style(style);
     for (_pos, e) in files.iter().enumerate() {
         bar.set_message(format!(
             "Converting {}...",
@@ -98,7 +119,6 @@ fn detect_image_type(filename: &String) -> ImageType {
         Ok(v) => v,
         Err(_error) => panic!("Error detecting image type")
     };
-    //file_data = ;
     // Detect the image type
     if file_data[0] == 0 && file_data[1] == 0 && file_data[2] == 0 {
         file_type_string = String::from("heif");
@@ -116,34 +136,67 @@ fn get_image(filename: &String, image_type: &ImageType, target_type: &ImageType)
     // Heif
     if image_type.heif {
         // Create the loader
-        let loader = HeifLoader::new(filename);
+        let mut loader = HeifLoader::new(filename);
         // Load
         loader.load();
         // Return the image
         return loader.get_image();
     } else {
-        // Clear the line
-        /*if let Some((w, h)) = term_size::dimensions() {
-            print!("\r");
-            for i in 0..w {
-                print!(" ");
-            }
-            print!("\r");
-        }*/
         print!("\x1b[1A\x1b[2K\r\x1b[93m[Warning]: Unsupported file type: {:?}. Triggered by file {}.\x1b[0m\n\n", image_type.to_string(), filename.to_string());
         return Image::new(1, 1);
     }
+}
+
+fn get_export_filename(filename: &String, target_type: &ImageType) -> String {
+    let mut chars = Vec::new();
+    let mut dot_index: i32 = -1;
+    for (_pos, c) in filename.chars().enumerate() {
+        chars.push(c);
+    }
+    chars.reverse();
+    for (pos, c) in chars.iter().enumerate() {
+        if *c == '.' {
+            dot_index = (filename.len() - pos) as i32;
+        }
+    }
+    let mut s = filename.to_string();
+    s.split_off(dot_index as usize);
+    return String::from(format!("{}{}", s, target_type.to_string()));
+}
+
+fn export_file<'a>(filename: String, im: &Image, type_string: String) -> i32 {
+    let ttype = ImageType::new(type_string.to_string());
+    if ttype.jpeg {
+        // Create the exporter
+        let exporter = JpegExporter::new();
+        // Attempt export
+        let e = exporter.export(filename.to_string(), &im);
+        return e;
+    }
+    return 0;
 }
 
 fn process_file(filename: &String, target_type_string: &String) -> i32 {
     let image_type = detect_image_type(filename);
     let target_type = ImageType::new(target_type_string.to_string());
     if target_type_string == "###no-op###" {
+        print!("\x1b[1A\x1b[2K\r\x1b[93m[Warning]: Skipping file {} since the target type ({}) is the same as the source type ({}).\x1b[0m\n\n", filename.to_string(), target_type.to_string(), image_type.to_string());
         return 0;
     }
     // Get the image
     let image = get_image(filename, &image_type, &target_type);
-    //println!("Type: {}, Target: {}", image_type.to_string(), target_type.to_string());
-    //thread::sleep(Duration::from_millis(1000));
+    // Get export filename
+    let efn = get_export_filename(filename, &target_type);
+    // Export
+    let export_result = export_file(efn.to_string(), &image, target_type.to_string());
+    if export_result != 0 {
+        print!("\x1b[1A\x1b[2K\r\x1b[31m[Error]: Failed to complete conversion for file {}.", efn);
+        unsafe {
+            if VERBOSE {
+                print!(" Error was encountered during the export stage.");
+            }
+        }
+        print!("\x1b[0m\n\n");
+    }
     return 0;
 }
