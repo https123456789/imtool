@@ -1,12 +1,7 @@
 # Builds
 build
-target
 imtool
 imtool.exe
-target
 
 # Replit
 .cache/replit
-
-# Cargo
-.cargo/registry
